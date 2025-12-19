@@ -1,0 +1,128 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String   @id @default(cuid())
+  email             String   @unique
+  name              String?
+  preferredCurrency String   @default("ARS") // ARS, USD_OFICIAL, USD_CCL, USD_BLUE
+  investmentProfile Json?    // Estrategia, plazo, tolerancia al riesgo
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  operations        Operation[]
+  portfolios        Portfolio[]
+  settings          UserSettings?
+}
+
+model UserSettings {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  defaultCurrency   String   @default("ARS")
+  theme             String   @default("light")
+  notifications     Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Platform {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  type        String   // BILLETERA, ALYC, CRYPTO
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  operations  Operation[]
+  assets      Asset[]
+}
+
+model Asset {
+  id           String   @id @default(cuid())
+  ticker       String   @unique
+  name         String
+  assetType    String   // ACCIONES, CEDEARS, BONOS, LETRAS, CRIPTO, FCI, FIDEICOMISOS, ON
+  sector       String?
+  platformId   String
+  isActive     Boolean  @default(true)
+  currentPrice Float?
+  dailyChange  Float?
+  lastUpdated  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  platform     Platform @relation(fields: [platformId], references: [id])
+  operations   Operation[]
+}
+
+model Operation {
+  id            String      @id @default(cuid())
+  userId        String
+  assetId       String
+  platformId    String
+  operationType String      // COMPRA, VENTA, DIVIDENDOS, SUSCRIPCION, RESCATE, PAGO_RENTA
+  currency      String      // ARS, USD
+  price         Float
+  quantity      Float
+  commissions   Float       @default(0)
+  total         Float
+  date          DateTime
+  description   String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  asset         Asset       @relation(fields: [assetId], references: [id])
+  platform      Platform    @relation(fields: [platformId], references: [id])
+}
+
+model Portfolio {
+  id            String   @id @default(cuid())
+  userId        String
+  name          String
+  type          String   // BILLETERA, ALYC, CRYPTO
+  totalValue    Float
+  investedValue Float
+  currency      String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  snapshots     PortfolioSnapshot[]
+}
+
+model PortfolioSnapshot {
+  id           String   @id @default(cuid())
+  portfolioId  String
+  date         DateTime
+  totalValue   Float
+  currency     String
+  createdAt    DateTime @default(now())
+  
+  portfolio    Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+}
+
+model ExchangeRate {
+  id          String   @id @default(cuid())
+  fromCurrency String  // ARS, USD
+  toCurrency   String   // USD_OFICIAL, USD_CCL, USD_BLUE
+  rate         Float
+  date         DateTime
+  source       String   @default("BANCO_NACION")
+  createdAt    DateTime @default(now())
+}
